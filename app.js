@@ -160,18 +160,118 @@
       el('div', { class: 'kpi-label', text: 'vs. General' }),
       el('div', { class: 'kpi-value', text: (entry.favorabilidad_total - DATA.general.favorabilidad_total >= 0 ? '+' : '') + (entry.favorabilidad_total !== null ? (entry.favorabilidad_total - DATA.general.favorabilidad_total).toFixed(1).replace('.', ',') + ' pp' : '—') })
     ]));
+
+    var dlBtn = document.getElementById('btnDownloadPdf');
+    dlBtn.onclick = function () { downloadPdfFor(state.dimType, entry); };
   }
 
-  function renderTopicBars() {
-    var box = document.getElementById('topicBars');
-    var hint = document.getElementById('topicHint');
-    box.innerHTML = '';
-    var entry = currentEntry();
-    hint.textContent = state.dimType === 'General' ? 'General' : (entry ? dimLabel(state.dimType) + ': ' + entry.value : 'Seleccioná un valor arriba');
-    if (!entry) {
-      box.appendChild(el('div', { class: 'empty-note', text: 'Elegí un valor de ' + dimLabel(state.dimType) + ' para ver el detalle por dimensión.' }));
+  function sanitizeFileName(s) {
+    return String(s)
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  }
+
+  function downloadPdfFor(dimType, entry) {
+    var btn = document.getElementById('btnDownloadPdf');
+    var libsReady = window.html2canvas && window.jspdf && window.jspdf.jsPDF;
+    if (!libsReady) {
+      alert('No se pudieron cargar las librerías de PDF (revisá tu conexión). Probá recargar la página.');
       return;
     }
+    btn.disabled = true;
+    var originalLabel = btn.textContent;
+    btn.textContent = 'Generando...';
+
+    var b = band(entry.favorabilidad_total);
+    var p = entry.participacion || {};
+    var vsGeneral = entry.favorabilidad_total !== null
+      ? (entry.favorabilidad_total - DATA.general.favorabilidad_total >= 0 ? '+' : '') + (entry.favorabilidad_total - DATA.general.favorabilidad_total).toFixed(1).replace('.', ',') + ' pp vs. general'
+      : '';
+
+    var root = el('div', { class: 'pdf-export-root' });
+    root.appendChild(el('div', { class: 'pe-header' }, [
+      el('div', { class: 'pe-mark' }),
+      el('div', {}, [
+        el('div', { class: 'pe-title', text: 'Encuesta de Clima · FY26' }),
+        el('div', { class: 'pe-subtitle', text: DATA.meta.instanceName + ' · ' + DATA.meta.surveyName })
+      ])
+    ]));
+    root.appendChild(el('h1', { text: dimLabel(dimType) + ': ' + entry.value }));
+    root.appendChild(el('span', { class: 'badge ' + b.cls, text: b.label }));
+    var kpiRow = el('div', { class: 'pe-kpis' });
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
+      el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Participación' }),
+      el('div', { class: 'kpi-value', text: fmtPct(p.tasa) }),
+      el('div', { class: 'kpi-sub', text: fmtInt(p.respondieron) + ' de ' + fmtInt(p.asignados) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'vs. General' }),
+      el('div', { class: 'kpi-value', text: vsGeneral || '—' })
+    ]));
+    root.appendChild(kpiRow);
+    root.appendChild(el('h2', { text: 'Favorabilidad por dimensión', style: 'margin-bottom:12px;' }));
+    var barsBox = el('div', { class: 'bars' });
+    barsBox.appendChild(buildBarRows(entry, true));
+    root.appendChild(barsBox);
+    root.appendChild(el('div', { class: 'pe-foot' }, [
+      document.createTextNode('Los cortes segmentados se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas. Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" sobre el total. Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
+    ]));
+
+    document.body.appendChild(root);
+
+    window.html2canvas(root, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+      document.body.removeChild(root);
+      var imgData = canvas.toDataURL('image/png');
+      var jsPDF = window.jspdf.jsPDF;
+      var pageWidth = 595.28; // A4 pt
+      var imgWidth = pageWidth - 48;
+      var imgHeight = canvas.height * (imgWidth / canvas.width);
+      var pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      var y = 24;
+      var remaining = imgHeight;
+      var srcY = 0;
+      var pageHeight = 841.89 - 48;
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 24, y, imgWidth, imgHeight);
+      } else {
+        // paginate: slice canvas into page-sized chunks
+        var pxPerPt = canvas.width / imgWidth;
+        var pageHeightPx = pageHeight * pxPerPt;
+        var pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        var first = true;
+        while (remaining > 0) {
+          var sliceHeightPx = Math.min(pageHeightPx, canvas.height - srcY);
+          pageCanvas.height = sliceHeightPx;
+          var ctx = pageCanvas.getContext('2d');
+          ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, srcY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
+          if (!first) pdf.addPage();
+          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 24, 24, imgWidth, sliceHeightPx / pxPerPt);
+          srcY += sliceHeightPx;
+          remaining -= sliceHeightPx / pxPerPt;
+          first = false;
+        }
+      }
+      var fname = 'Reporte_Clima_' + sanitizeFileName(dimType) + '_' + sanitizeFileName(entry.value) + '.pdf';
+      pdf.save(fname);
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }).catch(function (err) {
+      document.body.contains(root) && document.body.removeChild(root);
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      alert('No se pudo generar el PDF: ' + err);
+    });
+  }
+
+  function buildBarRows(entry, showMarker) {
+    var frag = document.createDocumentFragment();
     var topics = DATA.topics.slice().sort(function (a, b2) {
       var fa = (entry.byTopic[a] || {}).favorabilidad;
       var fb = (entry.byTopic[b2] || {}).favorabilidad;
@@ -188,13 +288,27 @@
       row.appendChild(el('div', { class: 'bar-label', text: t }));
       var track = el('div', { class: 'bar-track' });
       track.appendChild(el('div', { class: 'bar-fill ' + fillClass(b.cls), style: 'width:' + (fav || 0) + '%' }));
-      if (state.dimType !== 'General' && generalFav !== null && generalFav !== undefined) {
+      if (showMarker && generalFav !== null && generalFav !== undefined) {
         track.appendChild(el('div', { class: 'bar-marker', style: 'left:' + generalFav + '%', title: 'General: ' + fmtPct(generalFav) }));
       }
       row.appendChild(track);
       row.appendChild(el('div', { class: 'bar-value', text: fmtPct(fav) }));
-      box.appendChild(row);
+      frag.appendChild(row);
     });
+    return frag;
+  }
+
+  function renderTopicBars() {
+    var box = document.getElementById('topicBars');
+    var hint = document.getElementById('topicHint');
+    box.innerHTML = '';
+    var entry = currentEntry();
+    hint.textContent = state.dimType === 'General' ? 'General' : (entry ? dimLabel(state.dimType) + ': ' + entry.value : 'Seleccioná un valor arriba');
+    if (!entry) {
+      box.appendChild(el('div', { class: 'empty-note', text: 'Elegí un valor de ' + dimLabel(state.dimType) + ' para ver el detalle por dimensión.' }));
+      return;
+    }
+    box.appendChild(buildBarRows(entry, state.dimType !== 'General'));
   }
 
   function renderRankTable() {

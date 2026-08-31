@@ -10,6 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌤️</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -49,6 +51,7 @@
     <div class="panel-head">
       <h2 id="selectionTitle">—</h2>
       <span class="badge" id="selectionBadge"></span>
+      <button class="btn-download" id="btnDownloadPdf" type="button">⬇ Descargar PDF</button>
     </div>
     <div class="selection-kpis" id="selectionKpis"></div>
   </section>

@@ -199,6 +199,39 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
 .badge.risk { background: var(--red-100); color: var(--red-800); }
 .badge.na { background: var(--grey-100); color: var(--grey-800); }
 
+.btn-download {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--humand-600);
+  background: var(--humand-50);
+  border: 1px solid var(--humand-200);
+  border-radius: var(--radius-s);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-download:hover { background: var(--humand-100); }
+.btn-download:disabled { opacity: .6; cursor: wait; }
+
+/* Off-screen render target for PDF export */
+.pdf-export-root {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 760px;
+  background: var(--bg-card);
+  padding: 32px;
+}
+.pdf-export-root .pe-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.pdf-export-root .pe-mark { width: 40px; height: 40px; border-radius: var(--radius-m); background: linear-gradient(135deg, var(--humand-500), var(--humand-700)); flex-shrink: 0; }
+.pdf-export-root .pe-title { font-size: 18px; font-weight: 600; }
+.pdf-export-root .pe-subtitle { font-size: 12px; color: var(--text-lighter); }
+.pdf-export-root h1 { font-size: 20px; margin-bottom: 4px; }
+.pdf-export-root .pe-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 24px; }
+.pdf-export-root .pe-foot { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--grey-150); font-size: 10px; color: var(--text-lighter); }
+
 /* Horizontal bars */
 .bars { display: flex; flex-direction: column; gap: 12px; }
 .bar-row { display: grid; grid-template-columns: 1fr 3fr 56px; align-items: center; gap: 10px; }
