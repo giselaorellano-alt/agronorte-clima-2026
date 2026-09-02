@@ -1,6 +1,6 @@
 # Encuesta de Clima 2026 · Agronorte
 
-Reporte de resultados de la Encuesta de Clima (Work Environment Survey) para **Agronorte Oficial** (instance 181841, survey 435206), con segmentación por Departamento (Área), Jefe Directo y otras segmentaciones (División, Género, Sucursal, Ropa de trabajo, Antigüedad).
+Reporte de resultados de la Encuesta de Clima (Work Environment Survey) para **Agronorte Oficial** (instance 181841, survey 435206), con segmentación por Departamento (Área), Jefe Directo, División, Género y Sucursal.
 
 Sitio estático (HTML/CSS/JS sin build step) pensado para deploy directo en Vercel.
 
@@ -16,10 +16,12 @@ Sitio estático (HTML/CSS/JS sin build step) pensado para deploy directo en Verc
 
 ## Notas de datos
 
-- Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" (top-2-box, escala 0-4) sobre el total de respuestas de cada pregunta.
+- Favorabilidad (verde) = % de respuestas "de acuerdo" / "totalmente de acuerdo" (top-2-box, escala 0-4). Negativo (rojo) = % de respuestas "en desacuerdo" / "totalmente en desacuerdo" (bottom-2-box). Neutral (amarillo) = el resto. eNPS se calcula y muestra igual que las demás dimensiones (topic "eNPS" del Core Form), y se destaca como KPI principal junto con la favorabilidad general.
 - Los cortes segmentados solo se muestran para grupos con **3 o más respuestas** (anonimato).
 - "Departamento" corresponde al grupo de segmentación **ÁREA** (este cliente no usa el módulo de Departments de Humand).
 - "Jefe Directo" corresponde a `WorkEnvironmentSurveyUsers.directBossId`, congelado al momento de lanzar la encuesta.
+- **Universo del reporte**: colaboradores invitados a la encuesta, activos (`Users.deletedAt IS NULL`) y con un ítem de segmentación de **Antigüedad** asignado al momento del lanzamiento (grupo de segmentación id 458642). Esto da **379** colaboradores de los 386 invitados originalmente — los 7 restantes quedaron afuera por estar dados de baja o no tener Antigüedad asignada al lanzar la encuesta, y no fueron considerados en ningún cálculo (favorabilidad, participación, etc.).
+- Se excluyeron del reporte las segmentaciones de **Ropa de trabajo** y **Antigüedad**, a pedido del cliente.
 
 ## Desarrollo local
 

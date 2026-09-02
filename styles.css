@@ -60,8 +60,8 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
-  width: 40px; height: 40px; border-radius: var(--radius-m);
-  background: linear-gradient(135deg, var(--humand-500), var(--humand-700));
+  width: 40px; height: 40px;
+  object-fit: contain;
   display: inline-block; flex-shrink: 0;
 }
 .brand-title { font-weight: 600; font-size: 18px; color: var(--text-default); }
@@ -71,11 +71,14 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
 /* KPIs */
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin: 24px 0;
 }
-@media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi-card.kpi-primary { background: linear-gradient(135deg, var(--humand-50), var(--bg-card)); border: 1px solid var(--humand-100); }
 
 .kpi-card {
   background: var(--bg-card);
@@ -180,10 +183,11 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
 /* Selection panel */
 .selection-kpis {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
-@media (max-width: 640px) { .selection-kpis { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .selection-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 420px) { .selection-kpis { grid-template-columns: 1fr; } }
 
 .badge {
   display: inline-flex;
@@ -225,24 +229,57 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
   padding: 32px;
 }
 .pdf-export-root .pe-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
-.pdf-export-root .pe-mark { width: 40px; height: 40px; border-radius: var(--radius-m); background: linear-gradient(135deg, var(--humand-500), var(--humand-700)); flex-shrink: 0; }
+.pdf-export-root .pe-mark { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
 .pdf-export-root .pe-title { font-size: 18px; font-weight: 600; }
 .pdf-export-root .pe-subtitle { font-size: 12px; color: var(--text-lighter); }
 .pdf-export-root h1 { font-size: 20px; margin-bottom: 4px; }
-.pdf-export-root .pe-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 24px; }
+.pdf-export-root .pe-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 24px; }
 .pdf-export-root .pe-foot { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--grey-150); font-size: 10px; color: var(--text-lighter); }
 
-/* Horizontal bars */
-.bars { display: flex; flex-direction: column; gap: 12px; }
-.bar-row { display: grid; grid-template-columns: 1fr 3fr 56px; align-items: center; gap: 10px; }
+/* Horizontal bars — segmented (negativo / neutral / favorabilidad), like the Redash reports */
+.bars { display: flex; flex-direction: column; gap: 14px; }
+.bar-row { display: grid; grid-template-columns: 1fr 3fr 60px; align-items: center; gap: 10px; }
 .bar-row .bar-label { font-size: 13px; color: var(--text-default); }
-.bar-track { position: relative; height: 14px; background: var(--grey-100); border-radius: 999px; overflow: hidden; }
-.bar-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 999px; background: var(--humand-500); transition: width .3s ease; }
-.bar-fill.watch { background: var(--yellow-600); }
-.bar-fill.risk { background: var(--red-600); }
-.bar-marker { position: absolute; top: -3px; width: 2px; height: 20px; background: var(--grey-900); opacity: .55; }
-.bar-value { font-size: 13px; font-weight: 600; text-align: right; }
-.bar-row.compact .bar-track { height: 8px; }
+
+.seg-track {
+  display: flex;
+  width: 100%;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--grey-100);
+}
+.seg-track.compact { height: 12px; }
+.seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  transition: width .3s ease;
+}
+.seg-neg { background: var(--red-600); }
+.seg-neu { background: var(--yellow-600); }
+.seg-fav { background: var(--green-600); }
+.seg-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.seg-track.compact .seg-label { display: none; }
+
+.bar-value { font-size: 15px; font-weight: 600; text-align: right; }
+.bar-value .bar-value-tag { display: block; font-size: 9px; font-weight: 600; color: var(--text-lighter); text-transform: uppercase; letter-spacing: .4px; }
+.bar-row.compact .seg-track { height: 8px; }
+
+.seg-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--text-lighter); margin-bottom: 10px; }
+.seg-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.seg-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.seg-legend .lg-neg { background: var(--red-600); }
+.seg-legend .lg-neu { background: var(--yellow-600); }
+.seg-legend .lg-fav { background: var(--green-600); }
 
 /* Tables */
 .table-wrap { overflow-x: auto; }
@@ -260,10 +297,10 @@ h1, h2, h3 { font-weight: 600; margin: 0; color: var(--text-default); }
 .rank-table tbody td { padding: 8px 10px; border-bottom: 1px solid var(--grey-100); vertical-align: middle; }
 .rank-table tbody tr:hover { background: var(--grey-50); cursor: pointer; }
 .rank-table .cell-fav { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-.rank-table .mini-track { width: 64px; height: 6px; border-radius: 999px; background: var(--grey-100); position: relative; overflow: hidden; flex-shrink: 0; }
-.rank-table .mini-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 999px; background: var(--humand-500); }
-.rank-table .mini-fill.watch { background: var(--yellow-600); }
-.rank-table .mini-fill.risk { background: var(--red-600); }
+.rank-table .mini-track { width: 70px; height: 8px; border-radius: 4px; display: flex; overflow: hidden; flex-shrink: 0; background: var(--grey-100); }
+.rank-table .mini-seg-neg { background: var(--red-600); height: 100%; }
+.rank-table .mini-seg-neu { background: var(--yellow-600); height: 100%; }
+.rank-table .mini-seg-fav { background: var(--green-600); height: 100%; }
 .rank-table .na-cell { color: var(--grey-500); }
 
 .questions-table td.qtopic { color: var(--text-lighter); font-size: 12px; white-space: nowrap; }

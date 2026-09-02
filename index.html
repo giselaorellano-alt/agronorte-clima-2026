@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌤️</text></svg>">
+<link rel="icon" href="assets/agronorte-logo.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -18,7 +18,7 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true"></span>
+      <img class="brand-mark" src="assets/agronorte-logo.png" alt="Agronorte" aria-hidden="true">
       <div>
         <div class="brand-title">Encuesta de Clima · FY26</div>
         <div class="brand-subtitle" id="instanceName">Agronorte Oficial</div>
@@ -61,6 +61,7 @@
       <div class="panel-head">
         <h2>Favorabilidad por dimensión</h2>
         <span class="hint" id="topicHint">General</span>
+        <button class="btn-download" id="btnDownloadTopics" type="button">⬇ Descargar PDF</button>
       </div>
       <div class="bars" id="topicBars"></div>
     </div>
@@ -69,6 +70,7 @@
       <div class="panel-head">
         <h2 id="rankingTitle">Ranking · Departamento</h2>
         <span class="hint">Ordenado por favorabilidad</span>
+        <button class="btn-download" id="btnDownloadRanking" type="button">⬇ Descargar PDF</button>
       </div>
       <div class="table-wrap">
         <table class="rank-table" id="rankTable">
@@ -89,6 +91,7 @@
     <div class="panel-head">
       <h2>Detalle por pregunta (general)</h2>
       <span class="hint">Ordenado de menor a mayor favorabilidad · datos generales, sin segmentar</span>
+      <button class="btn-download" id="btnDownloadQuestions" type="button">⬇ Descargar PDF</button>
     </div>
     <div class="qfilter">
       <input type="text" id="questionSearch" class="value-search" placeholder="Buscar pregunta o dimensión...">
@@ -108,7 +111,8 @@
   </section>
 
   <footer class="page-footer">
-    <p>Los resultados segmentados se muestran únicamente para grupos con 3 o más respuestas, para proteger el anonimato de las personas encuestadas. Favorabilidad = % de respuestas "de acuerdo" o "totalmente de acuerdo" (top-2-box) sobre el total de respuestas de cada pregunta.</p>
+    <p>Los resultados segmentados se muestran únicamente para grupos con 3 o más respuestas, para proteger el anonimato de las personas encuestadas. Favorabilidad (verde) = % de respuestas "de acuerdo" o "totalmente de acuerdo" (top-2-box); Negativo (rojo) = % de respuestas "en desacuerdo" o "totalmente en desacuerdo" (bottom-2-box); Neutral (amarillo) = el resto de las respuestas.</p>
+    <p>Universo del reporte: colaboradores invitados, activos y con segmentación de Antigüedad asignada al momento del lanzamiento de la encuesta (379 de 386 invitados totales).</p>
     <p class="footer-credit">Preparado por Humand CX · Datos extraídos de Redash el <span id="generatedAt"></span>.</p>
   </footer>
 

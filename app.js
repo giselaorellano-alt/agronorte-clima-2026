@@ -17,12 +17,6 @@
     return { cls: 'risk', label: 'Crítico' };
   }
 
-  function fillClass(cls) {
-    if (cls === 'watch') return 'watch';
-    if (cls === 'risk') return 'risk';
-    return '';
-  }
-
   function el(tag, attrs, children) {
     var node = document.createElement(tag);
     attrs = attrs || {};
@@ -40,12 +34,19 @@
     var g = DATA.general;
     var p = g.participacion || {};
     var b = band(g.favorabilidad_total);
+    var enps = enpsFor(g);
+    var eb = band(enps);
     var row = document.getElementById('kpiRow');
     row.innerHTML = '';
-    row.appendChild(el('div', { class: 'kpi-card' }, [
+    row.appendChild(el('div', { class: 'kpi-card kpi-primary' }, [
       el('div', { class: 'kpi-label', text: 'Favorabilidad general' }),
       el('div', { class: 'kpi-value', text: fmtPct(g.favorabilidad_total) }),
       el('div', { class: 'kpi-sub' }, [el('span', { class: 'badge ' + b.cls, text: b.label })])
+    ]));
+    row.appendChild(el('div', { class: 'kpi-card kpi-primary' }, [
+      el('div', { class: 'kpi-label', text: 'eNPS' }),
+      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) }),
+      el('div', { class: 'kpi-sub' }, [el('span', { class: 'badge ' + eb.cls, text: eb.label })])
     ]));
     row.appendChild(el('div', { class: 'kpi-card' }, [
       el('div', { class: 'kpi-label', text: 'Participación' }),
@@ -65,8 +66,14 @@
   }
 
   function dimList() {
-    var order = ['General', 'Departamento', 'Jefe Directo', 'DIVISION', 'GENERO', 'SUCURSAL', 'ROPA', 'Antigüedad'];
+    var order = ['General', 'Departamento', 'Jefe Directo', 'DIVISION', 'GENERO', 'SUCURSAL'];
     return order.filter(function (d) { return d === 'General' || (DATA.dimensions[d] && DATA.dimensions[d].length); });
+  }
+
+  function enpsFor(entry) {
+    if (!entry || !entry.byTopic) return null;
+    var e = entry.byTopic['eNPS'];
+    return e ? e.favorabilidad : null;
   }
 
   function dimLabel(d) {
@@ -147,9 +154,14 @@
 
     kpis.innerHTML = '';
     var p = entry.participacion || {};
+    var enps = enpsFor(entry);
     kpis.appendChild(el('div', { class: 'kpi-card' }, [
       el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
       el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
+    ]));
+    kpis.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'eNPS' }),
+      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) })
     ]));
     kpis.appendChild(el('div', { class: 'kpi-card' }, [
       el('div', { class: 'kpi-label', text: 'Participación' }),
@@ -172,8 +184,23 @@
       .replace(/^_+|_+$/g, '');
   }
 
-  function downloadPdfFor(dimType, entry) {
-    var btn = document.getElementById('btnDownloadPdf');
+  function pdfHeader(subtitle) {
+    return el('div', { class: 'pe-header' }, [
+      el('img', { class: 'pe-mark', src: 'assets/agronorte-logo.png', alt: '' }),
+      el('div', {}, [
+        el('div', { class: 'pe-title', text: 'Encuesta de Clima · FY26' }),
+        el('div', { class: 'pe-subtitle', text: DATA.meta.instanceName + ' · ' + DATA.meta.surveyName + (subtitle ? ' · ' + subtitle : '') })
+      ])
+    ]);
+  }
+
+  function pdfFooter(extra) {
+    return el('div', { class: 'pe-foot' }, [
+      document.createTextNode('Los cortes segmentados se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas. Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" (positivo); Negativo = "en desacuerdo" / "totalmente en desacuerdo"; el resto es Neutral. ' + (extra || '') + ' Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
+    ]);
+  }
+
+  function runPdfExport(root, btn, filenameBase) {
     var libsReady = window.html2canvas && window.jspdf && window.jspdf.jsPDF;
     if (!libsReady) {
       alert('No se pudieron cargar las librerías de PDF (revisá tu conexión). Probá recargar la página.');
@@ -182,46 +209,6 @@
     btn.disabled = true;
     var originalLabel = btn.textContent;
     btn.textContent = 'Generando...';
-
-    var b = band(entry.favorabilidad_total);
-    var p = entry.participacion || {};
-    var vsGeneral = entry.favorabilidad_total !== null
-      ? (entry.favorabilidad_total - DATA.general.favorabilidad_total >= 0 ? '+' : '') + (entry.favorabilidad_total - DATA.general.favorabilidad_total).toFixed(1).replace('.', ',') + ' pp vs. general'
-      : '';
-
-    var root = el('div', { class: 'pdf-export-root' });
-    root.appendChild(el('div', { class: 'pe-header' }, [
-      el('div', { class: 'pe-mark' }),
-      el('div', {}, [
-        el('div', { class: 'pe-title', text: 'Encuesta de Clima · FY26' }),
-        el('div', { class: 'pe-subtitle', text: DATA.meta.instanceName + ' · ' + DATA.meta.surveyName })
-      ])
-    ]));
-    root.appendChild(el('h1', { text: dimLabel(dimType) + ': ' + entry.value }));
-    root.appendChild(el('span', { class: 'badge ' + b.cls, text: b.label }));
-    var kpiRow = el('div', { class: 'pe-kpis' });
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
-      el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
-    ]));
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'Participación' }),
-      el('div', { class: 'kpi-value', text: fmtPct(p.tasa) }),
-      el('div', { class: 'kpi-sub', text: fmtInt(p.respondieron) + ' de ' + fmtInt(p.asignados) })
-    ]));
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'vs. General' }),
-      el('div', { class: 'kpi-value', text: vsGeneral || '—' })
-    ]));
-    root.appendChild(kpiRow);
-    root.appendChild(el('h2', { text: 'Favorabilidad por dimensión', style: 'margin-bottom:12px;' }));
-    var barsBox = el('div', { class: 'bars' });
-    barsBox.appendChild(buildBarRows(entry, true));
-    root.appendChild(barsBox);
-    root.appendChild(el('div', { class: 'pe-foot' }, [
-      document.createTextNode('Los cortes segmentados se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas. Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" sobre el total. Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
-    ]));
-
     document.body.appendChild(root);
 
     window.html2canvas(root, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
@@ -258,8 +245,7 @@
           first = false;
         }
       }
-      var fname = 'Reporte_Clima_' + sanitizeFileName(dimType) + '_' + sanitizeFileName(entry.value) + '.pdf';
-      pdf.save(fname);
+      pdf.save(filenameBase + '.pdf');
       btn.disabled = false;
       btn.textContent = originalLabel;
     }).catch(function (err) {
@@ -270,8 +256,168 @@
     });
   }
 
-  function buildBarRows(entry, showMarker) {
+  function downloadPdfFor(dimType, entry) {
+    var btn = document.getElementById('btnDownloadPdf');
+    var b = band(entry.favorabilidad_total);
+    var p = entry.participacion || {};
+    var enps = enpsFor(entry);
+    var vsGeneral = entry.favorabilidad_total !== null
+      ? (entry.favorabilidad_total - DATA.general.favorabilidad_total >= 0 ? '+' : '') + (entry.favorabilidad_total - DATA.general.favorabilidad_total).toFixed(1).replace('.', ',') + ' pp vs. general'
+      : '';
+
+    var root = el('div', { class: 'pdf-export-root' });
+    root.appendChild(pdfHeader(dimLabel(dimType) + ': ' + entry.value));
+    root.appendChild(el('h1', { text: dimLabel(dimType) + ': ' + entry.value }));
+    root.appendChild(el('span', { class: 'badge ' + b.cls, text: b.label }));
+    var kpiRow = el('div', { class: 'pe-kpis' });
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
+      el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'eNPS' }),
+      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Participación' }),
+      el('div', { class: 'kpi-value', text: fmtPct(p.tasa) }),
+      el('div', { class: 'kpi-sub', text: fmtInt(p.respondieron) + ' de ' + fmtInt(p.asignados) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'vs. General' }),
+      el('div', { class: 'kpi-value', text: vsGeneral || '—' })
+    ]));
+    root.appendChild(kpiRow);
+    root.appendChild(el('h2', { text: 'Favorabilidad por dimensión', style: 'margin-bottom:12px;' }));
+    var barsBox = el('div', { class: 'bars' });
+    barsBox.appendChild(buildBarRows(entry, true));
+    root.appendChild(barsBox);
+    root.appendChild(pdfFooter());
+
+    runPdfExport(root, btn, 'Reporte_Clima_' + sanitizeFileName(dimType) + '_' + sanitizeFileName(entry.value));
+  }
+
+  function downloadTopicsPdf() {
+    var btn = document.getElementById('btnDownloadTopics');
+    var entry = currentEntry();
+    if (!entry) { alert('Elegí un valor de segmentación para poder descargar este cuadro, o volvé a General.'); return; }
+    var label = state.dimType === 'General' ? 'General' : (dimLabel(state.dimType) + ': ' + entry.value);
+    var root = el('div', { class: 'pdf-export-root' });
+    root.appendChild(pdfHeader('Favorabilidad por dimensión · ' + label));
+    root.appendChild(el('h1', { text: 'Favorabilidad por dimensión de clima' }));
+    root.appendChild(el('span', { class: 'badge', text: label, style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    var barsBox = el('div', { class: 'bars', style: 'margin-top:16px;' });
+    barsBox.appendChild(buildBarRows(entry, true));
+    root.appendChild(barsBox);
+    root.appendChild(pdfFooter());
+    runPdfExport(root, btn, 'Reporte_Clima_Dimensiones_' + sanitizeFileName(state.dimType) + '_' + sanitizeFileName(entry.value || 'General'));
+  }
+
+  function downloadRankingPdf() {
+    var btn = document.getElementById('btnDownloadRanking');
+    var dt = state.dimType === 'General' ? 'Departamento' : state.dimType;
+    var list = (DATA.dimensions[dt] || []).slice().sort(function (a, b) {
+      if (a.favorabilidad_total === null) return 1;
+      if (b.favorabilidad_total === null) return -1;
+      return b.favorabilidad_total - a.favorabilidad_total;
+    });
+    var root = el('div', { class: 'pdf-export-root' });
+    root.appendChild(pdfHeader('Ranking · ' + dimLabel(dt)));
+    root.appendChild(el('h1', { text: 'Ranking · ' + dimLabel(dt) }));
+    root.appendChild(el('span', { class: 'badge', text: 'Ordenado por favorabilidad', style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    var table = el('table', { class: 'rank-table', style: 'margin-top:16px;width:100%;border-collapse:collapse;' });
+    var thead = el('thead', {}, [el('tr', {}, [
+      el('th', { text: 'Nombre' }), el('th', { text: 'Participación' }), el('th', { text: 'Favorabilidad' })
+    ])]);
+    table.appendChild(thead);
+    var tbody = el('tbody');
+    list.forEach(function (it) {
+      var p = it.participacion || {};
+      var tr = el('tr');
+      tr.appendChild(el('td', { text: it.value }));
+      tr.appendChild(el('td', { text: fmtPct(p.tasa) + ' (' + fmtInt(p.respondieron) + '/' + fmtInt(p.asignados) + ')' }));
+      var favTd = el('td');
+      var cell = el('div', { class: 'cell-fav' });
+      cell.appendChild(buildMiniTrack(it.negativo_total, it.neutral_total, it.favorabilidad_total));
+      cell.appendChild(el('span', { text: fmtPct(it.favorabilidad_total) }));
+      favTd.appendChild(cell);
+      tr.appendChild(favTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    root.appendChild(table);
+    root.appendChild(pdfFooter());
+    runPdfExport(root, btn, 'Reporte_Clima_Ranking_' + sanitizeFileName(dt));
+  }
+
+  function downloadQuestionsPdf() {
+    var btn = document.getElementById('btnDownloadQuestions');
+    var filterText = document.getElementById('questionSearch').value || '';
+    var ft = filterText.toLowerCase();
+    var list = DATA.questions.filter(function (q) {
+      return !ft || q.pregunta.toLowerCase().indexOf(ft) !== -1 || q.topic.toLowerCase().indexOf(ft) !== -1;
+    });
+    var root = el('div', { class: 'pdf-export-root', style: 'width:900px;' });
+    root.appendChild(pdfHeader('Detalle por pregunta (general)'));
+    root.appendChild(el('h1', { text: 'Detalle por pregunta' }));
+    root.appendChild(el('span', { class: 'badge', text: filterText ? ('Filtro: "' + filterText + '"') : 'Todas las preguntas · datos generales', style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    var table = el('table', { class: 'rank-table questions-table', style: 'margin-top:16px;width:100%;border-collapse:collapse;' });
+    var thead = el('thead', {}, [el('tr', {}, [
+      el('th', { text: 'Dimensión' }), el('th', { text: 'Pregunta' }), el('th', { text: 'Favorabilidad' })
+    ])]);
+    table.appendChild(thead);
+    var tbody = el('tbody');
+    list.forEach(function (q) {
+      var tr = el('tr');
+      tr.appendChild(el('td', { class: 'qtopic', text: q.topic }));
+      tr.appendChild(el('td', { class: 'qtext', text: q.pregunta }));
+      var favTd = el('td');
+      var cell = el('div', { class: 'cell-fav' });
+      cell.appendChild(buildMiniTrack(q.negativo, q.neutral, q.favorabilidad));
+      cell.appendChild(el('span', { text: fmtPct(q.favorabilidad) }));
+      favTd.appendChild(cell);
+      tr.appendChild(favTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    root.appendChild(table);
+    root.appendChild(pdfFooter());
+    runPdfExport(root, btn, 'Reporte_Clima_Preguntas' + (filterText ? '_' + sanitizeFileName(filterText) : ''));
+  }
+
+  function buildSegTrack(cell, compact) {
+    var track = el('div', { class: 'seg-track' + (compact ? ' compact' : '') });
+    if (!cell || cell.favorabilidad === null || cell.favorabilidad === undefined) {
+      track.title = 'Sin datos (grupo menor al mínimo de anonimato)';
+      return track;
+    }
+    var neg = cell.negativo || 0;
+    var neu = cell.neutral || 0;
+    var fav = cell.favorabilidad || 0;
+    var segs = [
+      { cls: 'seg-neg', val: neg, label: 'Negativo' },
+      { cls: 'seg-neu', val: neu, label: 'Neutral' },
+      { cls: 'seg-fav', val: fav, label: 'Positivo' }
+    ];
+    segs.forEach(function (s) {
+      if (s.val <= 0) return;
+      var seg = el('div', { class: 'seg ' + s.cls, style: 'width:' + s.val + '%', title: s.label + ': ' + fmtPct(s.val) });
+      if (s.val >= 9) seg.appendChild(el('span', { class: 'seg-label', text: s.val.toFixed(0) + '%' }));
+      track.appendChild(seg);
+    });
+    return track;
+  }
+
+  function buildBarRows(entry, showLegend) {
     var frag = document.createDocumentFragment();
+    if (showLegend) {
+      var legend = el('div', { class: 'seg-legend' }, [
+        el('span', {}, [el('i', { class: 'lg-neg' }), document.createTextNode('Negativo')]),
+        el('span', {}, [el('i', { class: 'lg-neu' }), document.createTextNode('Neutral')]),
+        el('span', {}, [el('i', { class: 'lg-fav' }), document.createTextNode('Positivo (favorabilidad)')])
+      ]);
+      frag.appendChild(legend);
+    }
     var topics = DATA.topics.slice().sort(function (a, b2) {
       var fa = (entry.byTopic[a] || {}).favorabilidad;
       var fb = (entry.byTopic[b2] || {}).favorabilidad;
@@ -282,17 +428,13 @@
     topics.forEach(function (t) {
       var cell = entry.byTopic[t];
       var fav = cell ? cell.favorabilidad : null;
-      var b = band(fav);
-      var generalFav = (DATA.general.byTopic[t] || {}).favorabilidad;
       var row = el('div', { class: 'bar-row' });
       row.appendChild(el('div', { class: 'bar-label', text: t }));
-      var track = el('div', { class: 'bar-track' });
-      track.appendChild(el('div', { class: 'bar-fill ' + fillClass(b.cls), style: 'width:' + (fav || 0) + '%' }));
-      if (showMarker && generalFav !== null && generalFav !== undefined) {
-        track.appendChild(el('div', { class: 'bar-marker', style: 'left:' + generalFav + '%', title: 'General: ' + fmtPct(generalFav) }));
-      }
-      row.appendChild(track);
-      row.appendChild(el('div', { class: 'bar-value', text: fmtPct(fav) }));
+      row.appendChild(buildSegTrack(cell, false));
+      row.appendChild(el('div', { class: 'bar-value' }, [
+        el('span', { class: 'bar-value-tag', text: 'Puntaje' }),
+        document.createTextNode(fmtPct(fav))
+      ]));
       frag.appendChild(row);
     });
     return frag;
@@ -308,7 +450,7 @@
       box.appendChild(el('div', { class: 'empty-note', text: 'Elegí un valor de ' + dimLabel(state.dimType) + ' para ver el detalle por dimensión.' }));
       return;
     }
-    box.appendChild(buildBarRows(entry, state.dimType !== 'General'));
+    box.appendChild(buildBarRows(entry, true));
   }
 
   function renderRankTable() {
@@ -325,6 +467,15 @@
     renderRankRows(DATA.dimensions[state.dimType] || [], tbody);
   }
 
+  function buildMiniTrack(negativo, neutral, favorabilidad) {
+    var mtrack = el('div', { class: 'mini-track' });
+    if (favorabilidad === null || favorabilidad === undefined) return mtrack;
+    if (negativo) mtrack.appendChild(el('div', { class: 'mini-seg-neg', style: 'width:' + negativo + '%' }));
+    if (neutral) mtrack.appendChild(el('div', { class: 'mini-seg-neu', style: 'width:' + neutral + '%' }));
+    if (favorabilidad) mtrack.appendChild(el('div', { class: 'mini-seg-fav', style: 'width:' + favorabilidad + '%' }));
+    return mtrack;
+  }
+
   function renderRankRows(list, tbody) {
     var sorted = list.slice().sort(function (a, b) {
       if (a.favorabilidad_total === null) return 1;
@@ -332,16 +483,13 @@
       return b.favorabilidad_total - a.favorabilidad_total;
     });
     sorted.forEach(function (it) {
-      var b = band(it.favorabilidad_total);
       var p = it.participacion || {};
       var tr = el('tr');
       tr.appendChild(el('td', { text: it.value }));
       tr.appendChild(el('td', { text: fmtPct(p.tasa) + ' (' + fmtInt(p.respondieron) + '/' + fmtInt(p.asignados) + ')' }));
       var favTd = el('td');
       var favCell = el('div', { class: 'cell-fav' });
-      var mtrack = el('div', { class: 'mini-track' });
-      mtrack.appendChild(el('div', { class: 'mini-fill ' + fillClass(b.cls), style: 'width:' + (it.favorabilidad_total || 0) + '%' }));
-      favCell.appendChild(mtrack);
+      favCell.appendChild(buildMiniTrack(it.negativo_total, it.neutral_total, it.favorabilidad_total));
       favCell.appendChild(el('span', { text: fmtPct(it.favorabilidad_total) }));
       favTd.appendChild(favCell);
       tr.appendChild(favTd);
@@ -361,15 +509,12 @@
     DATA.questions
       .filter(function (q) { return !ft || q.pregunta.toLowerCase().indexOf(ft) !== -1 || q.topic.toLowerCase().indexOf(ft) !== -1; })
       .forEach(function (q) {
-        var b = band(q.favorabilidad);
         var tr = el('tr');
         tr.appendChild(el('td', { class: 'qtopic', text: q.topic }));
         tr.appendChild(el('td', { class: 'qtext', text: q.pregunta }));
         var favTd = el('td');
         var cell = el('div', { class: 'cell-fav' });
-        var mtrack = el('div', { class: 'mini-track' });
-        mtrack.appendChild(el('div', { class: 'mini-fill ' + fillClass(b.cls), style: 'width:' + q.favorabilidad + '%' }));
-        cell.appendChild(mtrack);
+        cell.appendChild(buildMiniTrack(q.negativo, q.neutral, q.favorabilidad));
         cell.appendChild(el('span', { text: fmtPct(q.favorabilidad) }));
         favTd.appendChild(cell);
         tr.appendChild(favTd);
@@ -396,6 +541,9 @@
     document.getElementById('questionSearch').addEventListener('input', function (e) {
       renderQuestions(e.target.value);
     });
+    document.getElementById('btnDownloadTopics').addEventListener('click', downloadTopicsPdf);
+    document.getElementById('btnDownloadRanking').addEventListener('click', downloadRankingPdf);
+    document.getElementById('btnDownloadQuestions').addEventListener('click', downloadQuestionsPdf);
     renderKpis();
     onFilterChange();
     renderQuestions('');
