@@ -2,6 +2,7 @@
   'use strict';
 
   var DATA = null;
+  var COMMENTS = null;
   var state = {
     dimType: 'General',
     dimValue: null
@@ -196,7 +197,7 @@
     ]);
   }
 
-  function runPdfExport(root, btn, filenameBase) {
+  function runPdfExport(root, btn, filenameBase, scaleOverride) {
     var libsReady = window.html2canvas && window.jspdf && window.jspdf.jsPDF;
     if (!libsReady) {
       alert('No se pudieron cargar las librerías de PDF (revisá tu conexión). Probá recargar la página.');
@@ -207,7 +208,7 @@
     btn.textContent = 'Generando...';
     document.body.appendChild(root);
 
-    window.html2canvas(root, { scale: 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+    window.html2canvas(root, { scale: scaleOverride || 2, backgroundColor: '#ffffff' }).then(function (canvas) {
       document.body.removeChild(root);
       var imgData = canvas.toDataURL('image/png');
       var jsPDF = window.jspdf.jsPDF;
@@ -381,6 +382,30 @@
     runPdfExport(root, btn, 'Reporte_Clima_Preguntas' + (filterText ? '_' + sanitizeFileName(filterText) : ''));
   }
 
+  function downloadComentariosPdf() {
+    var btn = document.getElementById('btnDownloadComments');
+    if (!COMMENTS || !COMMENTS.preguntasAbiertas || !COMMENTS.preguntasAbiertas.length) {
+      alert('No se pudieron cargar los comentarios.');
+      return;
+    }
+    var root = el('div', { class: 'pdf-export-root', style: 'width:760px;' });
+    root.appendChild(pdfHeader('Comentarios · preguntas abiertas'));
+    root.appendChild(el('h1', { text: 'Comentarios de la encuesta' }));
+    root.appendChild(el('span', { class: 'badge', text: 'Respuestas abiertas, sin editar', style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    COMMENTS.preguntasAbiertas.forEach(function (q) {
+      root.appendChild(el('h2', { text: q.pregunta, style: 'margin-top:24px;font-size:14px;' }));
+      root.appendChild(el('div', { class: 'hint', text: q.n + ' respuestas', style: 'display:block;margin-bottom:8px;' }));
+      var list = el('ul', { style: 'margin:0;padding-left:18px;' });
+      q.comentarios.forEach(function (c) {
+        list.appendChild(el('li', { text: c, style: 'margin-bottom:6px;font-size:11px;line-height:1.5;' }));
+      });
+      root.appendChild(list);
+    });
+    root.appendChild(pdfFooter('Las respuestas se muestran de forma anónima, sin datos de la persona que las escribió.'));
+    // scale 1: el volumen de texto es grande, un canvas a escala 2 puede ser demasiado pesado para el navegador.
+    runPdfExport(root, btn, 'Reporte_Clima_Comentarios', 1);
+  }
+
   function buildSegTrack(cell, compact) {
     var track = el('div', { class: 'seg-track' + (compact ? ' compact' : '') });
     if (!cell || cell.favorabilidad === null || cell.favorabilidad === undefined) {
@@ -515,6 +540,7 @@
     DATA.questions
       .filter(function (q) { return !ft || q.pregunta.toLowerCase().indexOf(ft) !== -1 || q.topic.toLowerCase().indexOf(ft) !== -1; })
       .forEach(function (q) {
+        var comments = q.comentarios || [];
         var tr = el('tr');
         tr.appendChild(el('td', { class: 'qtopic', text: q.topic }));
         tr.appendChild(el('td', { class: 'qtext', text: q.pregunta }));
@@ -524,8 +550,79 @@
         cell.appendChild(el('span', { text: fmtPct(q.favorabilidad) }));
         favTd.appendChild(cell);
         tr.appendChild(favTd);
+
+        var detailTr = el('tr', { class: 'q-detail-row', hidden: 'hidden' });
+        var detailTd = el('td', { colspan: '4' });
+        if (comments.length) {
+          var list = el('ul', { class: 'comments-list' });
+          comments.forEach(function (c) { list.appendChild(el('li', { class: 'comment-item', text: c })); });
+          detailTd.appendChild(list);
+        } else {
+          detailTd.appendChild(el('div', { class: 'comments-empty', text: 'Sin comentarios registrados para esta pregunta.' }));
+        }
+        detailTr.appendChild(detailTd);
+
+        var toggleTd = el('td', { class: 'qtoggle-cell' });
+        var toggleBtn = el('button', {
+          class: 'q-toggle',
+          type: 'button',
+          'aria-expanded': 'false'
+        }, [document.createTextNode('Comentarios (' + comments.length + ') ▾')]);
+        toggleBtn.addEventListener('click', function () {
+          var willShow = detailTr.hidden;
+          detailTr.hidden = !willShow;
+          toggleBtn.setAttribute('aria-expanded', String(willShow));
+          toggleBtn.textContent = 'Comentarios (' + comments.length + ') ' + (willShow ? '▴' : '▾');
+        });
+        toggleTd.appendChild(toggleBtn);
+        tr.appendChild(toggleTd);
+
         tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
       });
+  }
+
+  function renderComentarios() {
+    var box = document.getElementById('commentsBlocks');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!COMMENTS || !COMMENTS.preguntasAbiertas || !COMMENTS.preguntasAbiertas.length) {
+      box.appendChild(el('div', { class: 'empty-note', text: 'No se pudieron cargar los comentarios.' }));
+      return;
+    }
+    COMMENTS.preguntasAbiertas.forEach(function (q) {
+      var block = el('div', { class: 'comments-block' });
+      var head = el('div', { class: 'comments-block-head' });
+      head.appendChild(el('h3', { text: q.pregunta }));
+      head.appendChild(el('span', { class: 'comments-count-badge', text: q.n + ' respuestas' }));
+      block.appendChild(head);
+
+      var searchWrap = el('div', { class: 'qfilter' });
+      var searchInput = el('input', { type: 'text', class: 'value-search', placeholder: 'Buscar en las respuestas...' });
+      searchWrap.appendChild(searchInput);
+      var shownHint = el('span', { class: 'hint comments-shown-hint' });
+      searchWrap.appendChild(shownHint);
+      block.appendChild(searchWrap);
+
+      var list = el('ul', { class: 'comments-list scroll' });
+      q.comentarios.forEach(function (c) {
+        list.appendChild(el('li', { class: 'comment-item', text: c }));
+      });
+      block.appendChild(list);
+
+      searchInput.addEventListener('input', function () {
+        var ft = searchInput.value.toLowerCase().trim();
+        var shown = 0;
+        Array.prototype.forEach.call(list.children, function (li) {
+          var match = !ft || li.textContent.toLowerCase().indexOf(ft) !== -1;
+          li.hidden = !match;
+          if (match) shown++;
+        });
+        shownHint.textContent = ft ? ('Mostrando ' + shown + ' de ' + q.comentarios.length) : '';
+      });
+
+      box.appendChild(block);
+    });
   }
 
   function onFilterChange() {
@@ -550,14 +647,21 @@
     document.getElementById('btnDownloadTopics').addEventListener('click', downloadTopicsPdf);
     document.getElementById('btnDownloadRanking').addEventListener('click', downloadRankingPdf);
     document.getElementById('btnDownloadQuestions').addEventListener('click', downloadQuestionsPdf);
+    document.getElementById('btnDownloadComments').addEventListener('click', downloadComentariosPdf);
     renderKpis();
     onFilterChange();
     renderQuestions('');
+    renderComentarios();
   }
 
-  fetch('data.json')
-    .then(function (r) { return r.json(); })
-    .then(init)
+  Promise.all([
+    fetch('data.json').then(function (r) { return r.json(); }),
+    fetch('comentarios.json').then(function (r) { return r.json(); }).catch(function () { return null; })
+  ])
+    .then(function (results) {
+      COMMENTS = results[1];
+      init(results[0]);
+    })
     .catch(function (err) {
       document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;color:#942020">No se pudo cargar data.json: ' + err + '</div>';
     });

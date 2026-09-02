@@ -103,11 +103,21 @@
             <th>Dimensión</th>
             <th>Pregunta</th>
             <th>Favorabilidad</th>
+            <th>Comentarios</th>
           </tr>
         </thead>
         <tbody id="questionsTableBody"></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="panel" aria-label="Comentarios de la encuesta">
+    <div class="panel-head">
+      <h2>Comentarios</h2>
+      <span class="hint">Respuestas abiertas de los colaboradores, tal como fueron escritas y sin datos personales.</span>
+      <button class="btn-download" id="btnDownloadComments" type="button">⬇ Descargar PDF</button>
+    </div>
+    <div id="commentsBlocks"></div>
   </section>
 
   <footer class="page-footer">
