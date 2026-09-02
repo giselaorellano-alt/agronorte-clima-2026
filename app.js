@@ -33,20 +33,16 @@
   function renderKpis() {
     var g = DATA.general;
     var p = g.participacion || {};
-    var b = band(g.favorabilidad_total);
     var enps = enpsFor(g);
-    var eb = band(enps);
     var row = document.getElementById('kpiRow');
     row.innerHTML = '';
     row.appendChild(el('div', { class: 'kpi-card kpi-primary' }, [
       el('div', { class: 'kpi-label', text: 'Favorabilidad general' }),
-      el('div', { class: 'kpi-value', text: fmtPct(g.favorabilidad_total) }),
-      el('div', { class: 'kpi-sub' }, [el('span', { class: 'badge ' + b.cls, text: b.label })])
+      el('div', { class: 'kpi-value', text: fmtPct(g.favorabilidad_total) })
     ]));
     row.appendChild(el('div', { class: 'kpi-card kpi-primary' }, [
       el('div', { class: 'kpi-label', text: 'eNPS' }),
-      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) }),
-      el('div', { class: 'kpi-sub' }, [el('span', { class: 'badge ' + eb.cls, text: eb.label })])
+      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) })
     ]));
     row.appendChild(el('div', { class: 'kpi-card' }, [
       el('div', { class: 'kpi-label', text: 'Participación' }),
@@ -399,12 +395,22 @@
       { cls: 'seg-neu', val: neu, label: 'Neutral' },
       { cls: 'seg-fav', val: fav, label: 'Positivo' }
     ];
+    var fill = el('div', { class: 'seg-fill' });
+    var labels = el('div', { class: 'seg-labels' });
+    var cum = 0;
     segs.forEach(function (s) {
       if (s.val <= 0) return;
       var seg = el('div', { class: 'seg ' + s.cls, style: 'width:' + s.val + '%', title: s.label + ': ' + fmtPct(s.val) });
-      if (s.val >= 9) seg.appendChild(el('span', { class: 'seg-label', text: s.val.toFixed(0) + '%' }));
-      track.appendChild(seg);
+      fill.appendChild(seg);
+      if (!compact) {
+        var center = cum + s.val / 2;
+        center = Math.max(4, Math.min(96, center));
+        labels.appendChild(el('span', { class: 'seg-label', style: 'left:' + center + '%', text: s.val.toFixed(0) + '%' }));
+      }
+      cum += s.val;
     });
+    track.appendChild(fill);
+    if (!compact) track.appendChild(labels);
     return track;
   }
 
