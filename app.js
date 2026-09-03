@@ -213,7 +213,7 @@
 
   function pdfFooter(extra) {
     return el('div', { class: 'pe-foot' }, [
-      document.createTextNode('Los cortes segmentados se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas. Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" (positivo); Negativo = "en desacuerdo" / "totalmente en desacuerdo"; el resto es Neutral. ' + (extra || '') + ' Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
+      document.createTextNode('Se listan todos los cortes de segmentación; los resultados de favorabilidad se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas ("Sin datos" en los demás). Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" (positivo); Negativo = "en desacuerdo" / "totalmente en desacuerdo"; el resto es Neutral. ' + (extra || '') + ' Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
     ]);
   }
 
