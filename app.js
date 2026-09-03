@@ -191,6 +191,26 @@
     ]);
   }
 
+  function buildKpiRow(entry) {
+    var p = entry.participacion || {};
+    var enps = enpsFor(entry);
+    var kpiRow = el('div', { class: 'pe-kpis' });
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
+      el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'eNPS' }),
+      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) })
+    ]));
+    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
+      el('div', { class: 'kpi-label', text: 'Participación' }),
+      el('div', { class: 'kpi-value', text: fmtPct(p.tasa) }),
+      el('div', { class: 'kpi-sub', text: fmtInt(p.respondieron) + ' de ' + fmtInt(p.asignados) })
+    ]));
+    return kpiRow;
+  }
+
   function pdfFooter(extra) {
     return el('div', { class: 'pe-foot' }, [
       document.createTextNode('Los cortes segmentados se muestran solo para grupos con ' + (DATA.meta.anonimato_minimo || 3) + ' o más respuestas. Favorabilidad = % de respuestas "de acuerdo" / "totalmente de acuerdo" (positivo); Negativo = "en desacuerdo" / "totalmente en desacuerdo"; el resto es Neutral. ' + (extra || '') + ' Generado el ' + DATA.meta.generatedAt + ' · Humand CX.')
@@ -208,20 +228,31 @@
     btn.textContent = 'Generando...';
     document.body.appendChild(root);
 
-    window.html2canvas(root, { scale: scaleOverride || 2, backgroundColor: '#ffffff' }).then(function (canvas) {
+    var imgs = root.querySelectorAll('img');
+    var waitImgs = Array.prototype.map.call(imgs, function (img) {
+      if (img.complete && img.naturalWidth) return Promise.resolve();
+      if (img.decode) return img.decode().catch(function () {});
+      return new Promise(function (resolve) {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    });
+
+    Promise.all(waitImgs).then(function () {
+      return window.html2canvas(root, { scale: scaleOverride || 2, backgroundColor: '#ffffff' });
+    }).then(function (canvas) {
       document.body.removeChild(root);
-      var imgData = canvas.toDataURL('image/png');
+      var imgData = canvas.toDataURL('image/jpeg', 0.95);
       var jsPDF = window.jspdf.jsPDF;
       var pageWidth = 595.28; // A4 pt
       var imgWidth = pageWidth - 48;
       var imgHeight = canvas.height * (imgWidth / canvas.width);
       var pdf = new jsPDF({ unit: 'pt', format: 'a4' });
       var y = 24;
-      var remaining = imgHeight;
       var srcY = 0;
       var pageHeight = 841.89 - 48;
       if (imgHeight <= pageHeight) {
-        pdf.addImage(imgData, 'PNG', 24, y, imgWidth, imgHeight);
+        pdf.addImage(imgData, 'JPEG', 24, y, imgWidth, imgHeight);
       } else {
         // paginate: slice canvas into page-sized chunks
         var pxPerPt = canvas.width / imgWidth;
@@ -229,16 +260,18 @@
         var pageCanvas = document.createElement('canvas');
         pageCanvas.width = canvas.width;
         var first = true;
-        while (remaining > 0) {
+        // Loop on the pixel offset (not a decremented float) so rounding drift
+        // can never produce a trailing zero-height slice / invalid image.
+        while (srcY < canvas.height) {
           var sliceHeightPx = Math.min(pageHeightPx, canvas.height - srcY);
+          if (sliceHeightPx < 1) break;
           pageCanvas.height = sliceHeightPx;
           var ctx = pageCanvas.getContext('2d');
           ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
           ctx.drawImage(canvas, 0, srcY, canvas.width, sliceHeightPx, 0, 0, canvas.width, sliceHeightPx);
           if (!first) pdf.addPage();
-          pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 24, 24, imgWidth, sliceHeightPx / pxPerPt);
+          pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 24, 24, imgWidth, sliceHeightPx / pxPerPt);
           srcY += sliceHeightPx;
-          remaining -= sliceHeightPx / pxPerPt;
           first = false;
         }
       }
@@ -256,8 +289,6 @@
   function downloadPdfFor(dimType, entry) {
     var btn = document.getElementById('btnDownloadPdf');
     var b = band(entry.favorabilidad_total);
-    var p = entry.participacion || {};
-    var enps = enpsFor(entry);
     var vsGeneral = entry.favorabilidad_total !== null
       ? (entry.favorabilidad_total - DATA.general.favorabilidad_total >= 0 ? '+' : '') + (entry.favorabilidad_total - DATA.general.favorabilidad_total).toFixed(1).replace('.', ',') + ' pp vs. general'
       : '';
@@ -266,20 +297,7 @@
     root.appendChild(pdfHeader(dimLabel(dimType) + ': ' + entry.value));
     root.appendChild(el('h1', { text: dimLabel(dimType) + ': ' + entry.value }));
     root.appendChild(el('span', { class: 'badge ' + b.cls, text: b.label }));
-    var kpiRow = el('div', { class: 'pe-kpis' });
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'Favorabilidad' }),
-      el('div', { class: 'kpi-value', text: fmtPct(entry.favorabilidad_total) })
-    ]));
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'eNPS' }),
-      el('div', { class: 'kpi-value', text: enps === null ? '—' : fmtPct(enps) })
-    ]));
-    kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
-      el('div', { class: 'kpi-label', text: 'Participación' }),
-      el('div', { class: 'kpi-value', text: fmtPct(p.tasa) }),
-      el('div', { class: 'kpi-sub', text: fmtInt(p.respondieron) + ' de ' + fmtInt(p.asignados) })
-    ]));
+    var kpiRow = buildKpiRow(entry);
     kpiRow.appendChild(el('div', { class: 'kpi-card' }, [
       el('div', { class: 'kpi-label', text: 'vs. General' }),
       el('div', { class: 'kpi-value', text: vsGeneral || '—' })
@@ -303,6 +321,9 @@
     root.appendChild(pdfHeader('Favorabilidad por dimensión · ' + label));
     root.appendChild(el('h1', { text: 'Favorabilidad por dimensión de clima' }));
     root.appendChild(el('span', { class: 'badge', text: label, style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    if (state.dimType !== 'General') {
+      root.appendChild(buildKpiRow(entry));
+    }
     var barsBox = el('div', { class: 'bars', style: 'margin-top:16px;' });
     barsBox.appendChild(buildBarRows(entry, true));
     root.appendChild(barsBox);
@@ -322,6 +343,13 @@
     root.appendChild(pdfHeader('Ranking · ' + dimLabel(dt)));
     root.appendChild(el('h1', { text: 'Ranking · ' + dimLabel(dt) }));
     root.appendChild(el('span', { class: 'badge', text: 'Ordenado por favorabilidad', style: 'background:var(--humand-50);color:var(--humand-700);' }));
+    if (state.dimType !== 'General' && state.dimValue) {
+      var selEntry = currentEntry();
+      if (selEntry) {
+        root.appendChild(el('div', { class: 'hint', style: 'margin-top:10px;', text: 'Selección actual: ' + dimLabel(state.dimType) + ': ' + selEntry.value }));
+        root.appendChild(buildKpiRow(selEntry));
+      }
+    }
     var table = el('table', { class: 'rank-table', style: 'margin-top:16px;width:100%;border-collapse:collapse;' });
     var thead = el('thead', {}, [el('tr', {}, [
       el('th', { text: 'Nombre' }), el('th', { text: 'Participación' }), el('th', { text: 'Favorabilidad' })
