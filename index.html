@@ -56,6 +56,32 @@
     <div class="selection-kpis" id="selectionKpis"></div>
   </section>
 
+  <section class="panel cross-panel" aria-label="Cruce de segmentaciones">
+    <div class="panel-head">
+      <h2>Cruce de segmentaciones</h2>
+      <span class="hint">Elegí dos dimensiones para ver favorabilidad, eNPS y participación combinadas para ese grupo específico</span>
+    </div>
+    <div class="cross-controls">
+      <div class="cross-dim">
+        <span class="filters-label">Dimensión A:</span>
+        <select id="crossDimA" class="value-select"></select>
+        <div class="value-picker">
+          <input type="text" id="crossValASearch" class="value-search" placeholder="Buscar valor..." autocomplete="off">
+          <select id="crossValA" class="value-select"></select>
+        </div>
+      </div>
+      <div class="cross-dim">
+        <span class="filters-label">Dimensión B:</span>
+        <select id="crossDimB" class="value-select"></select>
+        <div class="value-picker">
+          <input type="text" id="crossValBSearch" class="value-search" placeholder="Buscar valor..." autocomplete="off">
+          <select id="crossValB" class="value-select"></select>
+        </div>
+      </div>
+    </div>
+    <div id="crossResult" class="cross-result"></div>
+  </section>
+
   <section class="grid-2col">
     <div class="panel" aria-label="Favorabilidad por dimensión de clima">
       <div class="panel-head">
@@ -121,7 +147,7 @@
   </section>
 
   <footer class="page-footer">
-    <p>Se listan todos los cortes de segmentación, pero los resultados de favorabilidad se muestran únicamente para grupos con 3 o más respuestas ("Sin datos" en los demás), para proteger el anonimato de las personas encuestadas. Favorabilidad (verde) = % de respuestas "de acuerdo" o "totalmente de acuerdo" (top-2-box); Negativo (rojo) = % de respuestas "en desacuerdo" o "totalmente en desacuerdo" (bottom-2-box); Neutral (amarillo) = el resto de las respuestas.</p>
+    <p id="footerAnonimatoNote">Se listan todos los cortes de segmentación, pero los resultados de favorabilidad se muestran únicamente para grupos con 5 o más respuestas ("Sin datos" en los demás), para proteger el anonimato de las personas encuestadas. Favorabilidad (verde) = % de respuestas "de acuerdo" o "totalmente de acuerdo" (top-2-box); Negativo (rojo) = % de respuestas "en desacuerdo" o "totalmente en desacuerdo" (bottom-2-box); Neutral (amarillo) = el resto de las respuestas.</p>
     <p>Universo del reporte: colaboradores invitados, activos y con segmentación de Antigüedad asignada al momento del lanzamiento de la encuesta (379 de 386 invitados totales).</p>
     <p class="footer-credit">Preparado por Humand CX · Datos extraídos de Redash el <span id="generatedAt"></span>.</p>
   </footer>
